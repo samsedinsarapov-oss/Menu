@@ -10,42 +10,25 @@
         .item { background: white; padding: 15px; margin-bottom: 10px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         img { width: 100px; height: 100px; border-radius: 10px; }
         h3 { margin: 10px 0 5px; }
-        p { color: #555; font-weight: bold; }
-        button { background-color: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; }
-        button:active { background-color: #218838; transform: scale(0.98); }
+        button { background-color: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; width: 100%; }
     </style>
 </head>
 <body>
     <h2>Наше Меню</h2>
-    
     <div class="item">
         <img src="https://cdn-icons-png.flaticon.com/512/3075/3075977.png" alt="Бургер">
         <h3>Бургер Классик</h3>
         <p>250 руб.</p>
-        <button onclick="sendOrder('Бургер Классик', 250)">Добавить</button>
+        <button onclick="sendOrder('Бургер Классик', 250)">Заказать</button>
     </div>
-
-    <div class="item">
-        <img src="https://cdn-icons-png.flaticon.com/512/3595/3595455.png" alt="Пицца">
-        <h3>Пицца Пепперони</h3>
-        <p>450 руб.</p>
-        <button onclick="sendOrder('Пицца Пепперони', 450)">Добавить</button>
-    </div>
-
     <script>
         let tg = window.Telegram.WebApp;
-        tg.expand(); // Раскрываем приложение полностью
-
+        tg.expand();
         function sendOrder(name, price) {
-            let data = JSON.stringify({
-                item: name,
-                price: price
-            });
+            let data = JSON.stringify({ item: name, price: price });
             tg.sendData(data); // Отправляем данные боту
-            tg.close(); // Закрываем окно
+            tg.close(); 
         }
     </script>
 </body>
 </html>
-
-
