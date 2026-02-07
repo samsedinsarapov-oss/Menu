@@ -1,0 +1,98 @@
+import telebot
+from telebot import types
+import json
+
+# Твой токен
+TOKEN = '8584017257:AAEc_NFvlRBqp62PL6eTkL2JqYlHkfYFFOs'
+# Твой ID (для получения заказов)
+ADMIN_ID = 7754554184 
+
+bot = telebot.TeleBot(TOKEN)
+user_orders = {}
+
+@bot.message_handler(commands=['start'])
+def start(message):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    # ЗАМЕНИ ССЫЛКУ НИЖЕ на свою ссылку от GitHub Pages
+    web_app = types.WebAppInfo("https://твой-логин.github.io/index.html")
+    markup.add(types.KeyboardButton("🍽 Открыть меню", web_app=web_app))
+    
+    bot.send_message(
+        message.chat.id, 
+        "Добро пожаловать! Нажмите на кнопку ниже, чтобы выбрать блюда:", 
+        reply_markup=markup
+    )
+
+# 1. Получаем выбор из Web App
+@bot.message_handler(content_types=['web_app_data'])
+def handle_web_app_data(message):
+    data = json.loads(message.web_app_data.data)
+    user_orders[message.chat.id] = data
+    
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    markup.add(types.KeyboardButton("📱 Отправить номер телефона", request_contact=True))
+    
+    bot.send_message(
+        message.chat.id, 
+        f"Вы выбрали: {data['item']}\nЦена: {data['price']}\n\nТеперь отправьте ваш номер телефона для связи:", 
+        reply_markup=markup
+    )
+
+# 2. Получаем контакт и спрашиваем способ получения
+@bot.message_handler(content_types=['contact'])
+def handle_contact(message):
+    chat_id = message.chat.id
+    if chat_id in user_orders:
+        user_orders[chat_id]['phone'] = message.contact.phone_number
+        
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        markup.add("🏃 Самовывоз", "🚖 Отправить на такси")
+        
+        bot.send_message(chat_id, "Как вы хотите получить заказ?", reply_markup=markup)
+
+# 3. Обработка выбора (Самовывоз или Такси)
+@bot.message_handler(func=lambda message: message.text in ["🏃 Самовывоз", "🚖 Отправить на такси"])
+def handle_delivery_method(message):
+    chat_id = message.chat.id
+    if chat_id in user_orders:
+        user_orders[chat_id]['method'] = message.text
+        
+        if message.text == "🚖 Отправить на такси":
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            markup.add(types.KeyboardButton("📍 Отправить локацию", request_location=True))
+            bot.send_message(chat_id, "Пожалуйста, отправьте вашу локацию, чтобы мы могли вызвать такси:", reply_markup=markup)
+        else:
+            send_to_admin(message)
+
+# 4. Получаем локацию (если такси)
+@bot.message_handler(content_types=['location'])
+def handle_location(message):
+    chat_id = message.chat.id
+    if chat_id in user_orders:
+        user_orders[chat_id]['lat'] = message.location.latitude
+        user_orders[chat_id]['lon'] = message.location.longitude
+        send_to_admin(message)
+
+# Финал: Отправка данных админу
+def send_to_admin(message):
+    chat_id = message.chat.id
+    order = user_orders[chat_id]
+    
+    admin_msg = f"🔔 НОВЫЙ ЗАКАЗ!\n\n" \
+                f"🍕 Блюдо: {order['item']}\n" \
+                f"💰 Цена: {order['price']}\n" \
+                f"📞 Телефон: {order['phone']}\n" \
+                f"📦 Способ: {order['method']}"
+    
+    bot.send_message(ADMIN_ID, admin_msg)
+    
+    # Если есть координаты — шлем карту админу
+    if 'lat' in order:
+        bot.send_location(ADMIN_ID, order['lat'], order['lon'])
+        bot.send_message(ADMIN_ID, "☝️ Это адрес клиента для таксиста.")
+
+    bot.send_message(chat_id, "✅ Спасибо! Ваш заказ принят. Мы свяжемся с вами.", reply_markup=types.ReplyKeyboardRemove())
+    del user_orders[chat_id]
+
+if __name__ == '__main__':
+    bot.polling(none_stop=True)
